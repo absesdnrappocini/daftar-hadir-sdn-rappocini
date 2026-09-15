@@ -243,18 +243,37 @@
 
       <!-- DASHBOARD LIVE HARIAN ADMIN -->
       <div class="bg-white p-4 rounded-2xl shadow-sm space-y-3">
-        <h2 class="text-xs font-bold text-slate-700 uppercase border-b pb-2"><i class="fa-solid fa-chart-pie mr-1"></i> Ringkasan Hari Ini</h2>
-        <div class="grid grid-cols-4 gap-1 text-center text-white text-[10px]">
-          <div class="bg-blue-600 p-2 rounded-lg"><span class="block font-bold text-sm" id="cntTotal">0</span>Total</div>
-          <div class="bg-green-600 p-2 rounded-lg"><span class="block font-bold text-sm" id="cntTepat">0</span>Tepat</div>
-          <div class="bg-amber-600 p-2 rounded-lg"><span class="block font-bold text-sm" id="cntTerlambat">0</span>Late</div>
-          <div class="bg-red-600 p-2 rounded-lg"><span class="block font-bold text-sm" id="cntBelum">0</span>Belum</div>
-        </div>
+      <h2 class="text-xs font-bold text-slate-700 uppercase border-b pb-2 flex items-center justify-between">
+        <span><i class="fa-solid fa-chart-pie mr-1"></i> Ringkasan Hari Ini</span>
+        <span id="filterLabel" class="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-normal lowercase">Semua Data</span>
+      </h2>
 
-        <div id="adminLiveList" class="divide-y text-xs">
-          <!-- Loaded dynamically -->
+      <!-- Chart Diagram Admin -->
+      <div class="w-36 h-36 mx-auto py-1">
+        <canvas id="adminTodayChart"></canvas>
+      </div>
+
+      <!-- Kartu Filter Interaktif -->
+      <div class="grid grid-cols-4 gap-1.5 text-center text-white text-[10px] font-medium">
+        <div onclick="filterAdminToday('total')" id="btn-filter-total" class="bg-blue-600 p-2 rounded-lg cursor-pointer hover:opacity-90 transition ring-2 ring-blue-600">
+          <span class="block font-bold text-sm" id="cntTotal">0</span>Total
+        </div>
+        <div onclick="filterAdminToday('tepat')" id="btn-filter-tepat" class="bg-green-600 p-2 rounded-lg cursor-pointer hover:opacity-90 transition opacity-70">
+          <span class="block font-bold text-sm" id="cntTepat">0</span>Tepat
+        </div>
+        <div onclick="filterAdminToday('late')" id="btn-filter-late" class="bg-amber-600 p-2 rounded-lg cursor-pointer hover:opacity-90 transition opacity-70">
+          <span class="block font-bold text-sm" id="cntTerlambat">0</span>Late
+        </div>
+        <div onclick="filterAdminToday('belum')" id="btn-filter-belum" class="bg-red-600 p-2 rounded-lg cursor-pointer hover:opacity-90 transition opacity-70">
+          <span class="block font-bold text-sm" id="cntBelum">0</span>Belum
         </div>
       </div>
+
+      <!-- Daftar Guru Live -->
+      <div id="adminLiveList" class="divide-y text-xs space-y-1">
+        <!-- Loaded dynamically -->
+      </div>
+    </div>
     </div>
 
   </main>
@@ -810,6 +829,63 @@ function renderRiwayatTable(data) {
       location.reload();
     }
   });
+}
+    let currentAdminFilter = 'total';
+let adminChartInstance = null;
+
+// 1. Render Diagram Chart Admin
+function renderAdminChart(tepat, late, izin, belum) {
+  const ctx = document.getElementById('adminTodayChart');
+  if (!ctx) return;
+  if (adminChartInstance) adminChartInstance.destroy();
+
+  adminChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Tepat Waktu', 'Terlambat', 'Izin/Sakit', 'Belum Absen'],
+      datasets: [{
+        data: [tepat, late, izin, belum],
+        backgroundColor: ['#16a34a', '#d97706', '#2563eb', '#dc2626'],
+        borderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } }
+    }
+  });
+}
+
+// 2. Filter Klik Kartu
+function filterAdminToday(type) {
+  currentAdminFilter = type;
+  const filterMap = { total: 'Semua Data', tepat: 'Tepat Waktu', late: 'Terlambat', belum: 'Belum Absen' };
+  document.getElementById('filterLabel').innerText = filterMap[type] || 'Semua Data';
+
+  ['total', 'tepat', 'late', 'belum'].forEach(t => {
+    const btn = document.getElementById(`btn-filter-${t}`);
+    if (btn) {
+      if (t === type) {
+        btn.classList.remove('opacity-70');
+        btn.classList.add('ring-2', 'ring-white');
+      } else {
+        btn.classList.add('opacity-70');
+        btn.classList.remove('ring-2', 'ring-white');
+      }
+    }
+  });
+
+  if (typeof renderAdminLiveList === 'function') renderAdminLiveList();
+}
+
+// 3. Ubah Status Manual untuk Guru yang Belum Absen
+function setStatusManual(namaGuru) {
+  const status = prompt(`Pilih status untuk ${namaGuru}:\n(Ketik: Izin / Sakit / Alpa)`, 'Izin');
+  if (status && ['Izin', 'Sakit', 'Alpa'].includes(status.trim())) {
+    alert(`Status ${namaGuru} berhasil diubah menjadi: ${status.trim()}`);
+    // Integrasi panggil Google Apps Script simpan status di sini jika diperlukan
+  }
 }
   </script>
 </body>
