@@ -133,7 +133,9 @@
                 <th class="p-2">Status</th>
                 <th class="p-2">Masuk</th>
                 <th class="p-2">Pulang</th>
-                <th class="p-2">Foto</th>
+                <th class="p-2">Jam Kerja</th>
+                <th class="p-2">Foto Masuk</th>
+                <th class="p-2">Foto Pulang</th>
               </tr>
             </thead>
             <tbody id="tableRiwayatBody" class="divide-y">
@@ -509,32 +511,53 @@ canvas.width = video.videoWidth || 640;
       });
     }
 
-    function renderRiwayatTable(data) {
-      const tbody = document.getElementById('tableRiwayatBody');
-      tbody.innerHTML = '';
+    // Fungsi bantuan menghitung durasi jam kerja
+function hitungJamKerja(masuk, pulang) {
+  if (!masuk || !pulang || masuk === '-' || pulang === '-') return '-';
+  const [h1, m1] = masuk.split(':').map(Number);
+  const [h2, m2] = pulang.split(':').map(Number);
+  if (isNaN(h1) || isNaN(h2)) return '-';
+  
+  let totalMenit = (h2 * 60 + m2) - (h1 * 60 + m1);
+  if (totalMenit < 0) totalMenit += 24 * 60; // Jika lewat tengah malam
+  
+  const jam = Math.floor(totalMenit / 60);
+  const menit = totalMenit % 60;
+  return `${jam}j ${menit}m`;
+}
 
-      if (data.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="p-4 text-center text-slate-400">Tidak ada data</td></tr>';
-        return;
-      }
+function renderRiwayatTable(data) {
+  const tbody = document.getElementById('tableRiwayatBody');
+  tbody.innerHTML = '';
 
-      data.forEach(r => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="p-2">
-            <b class="block text-slate-700">${r.nama}</b>
-            <span class="text-[9px] text-slate-400">${r.tanggal} (${r.shift || 'PAGI'})</span>
-          </td>
-          <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${r.status === 'Terlambat' ? 'bg-amber-100 text-amber-700' : 'bg-green-100 text-green-700'}">${r.status}</span></td>
-          <td class="p-2 font-mono">${r.jamMasuk}</td>
-          <td class="p-2 font-mono">${r.jamPulang}</td>
-          <td class="p-2">
-            ${r.fotoMasuk !== '-' ? `<a href="${r.fotoMasuk}" target="_blank" class="text-blue-600 underline text-[10px]">Foto</a>` : '-'}
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
-    }
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">Tidak ada data</td></tr>';
+    return;
+  }
+
+  data.forEach(r => {
+    const jamMasuk = r.jamMasuk || r.masuk || '-';
+    const jamPulang = r.jamPulang || r.pulang || '-';
+    const durasi = hitungJamKerja(jamMasuk, jamPulang);
+    const fotoMasukUrl = r.fotoMasuk || r.foto;
+    const fotoPulangUrl = r.fotoPulang || r.linkFotoPulang;
+
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="p-2">
+        <b class="block text-slate-700">${r.nama}</b>
+        <span class="text-[9px] text-slate-400">${r.tanggal} (${r.shift || 'PAGI'})</span>
+      </td>
+      <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${r.status === 'Terlambat' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${r.status}</span></td>
+      <td class="p-2 font-mono text-center">${jamMasuk}</td>
+      <td class="p-2 font-mono text-center">${jamPulang}</td>
+      <td class="p-2 text-center font-bold text-blue-600">${durasi}</td>
+      <td class="p-2 text-center">${fotoMasukUrl && fotoMasukUrl !== '-' ? `<a href="${fotoMasukUrl}" target="_blank" class="text-blue-600 underline text-[10px]">Foto</a>` : '-'}</td>
+      <td class="p-2 text-center">${fotoPulangUrl && fotoPulangUrl !== '-' ? `<a href="${fotoPulangUrl}" target="_blank" class="text-blue-600 underline text-[10px]">Foto</a>` : '-'}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
 
     function renderChart(data) {
       const counts = { tepat: 0, terlambat: 0, izin: 0, alpa: 0 };
