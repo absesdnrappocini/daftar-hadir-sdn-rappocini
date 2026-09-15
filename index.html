@@ -878,19 +878,72 @@ function filterAdminToday(type) {
 
   if (typeof renderAdminLiveList === 'function') renderAdminLiveList();
 }
-function renderAdminLiveList(todayData, allUsers) {
-  // 1. Deteksi data dari parameter atau variabel global bawaan
-  const records = todayData || window.cachedTodayData || window.todayData || window.dataHariIni || [];
-  const users = allUsers || window.cachedAllUsers || window.allUsers || window.daftarGuru || [];
+// Variable Global & Instansi Chart
+window.currentAdminFilter = window.currentAdminFilter || 'total';
+let adminChartInstance = null;
 
-  // Simpan ke cache jika data ditemukan
-  if (records.length > 0) window.cachedTodayData = records;
-  if (users.length > 0) window.cachedAllUsers = users;
+// 1. Fungsi Menggambar Diagram Donut
+function renderAdminChart(tepat, late, izin, belum) {
+  const ctx = document.getElementById('adminTodayChart');
+  if (!ctx) return;
+
+  if (typeof Chart === 'undefined') {
+    console.warn('Library Chart.js belum terdeteksi.');
+    return;
+  }
+
+  if (adminChartInstance) {
+    adminChartInstance.destroy();
+  }
+
+  adminChartInstance = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Tepat Waktu', 'Terlambat', 'Izin/Sakit', 'Belum Absen'],
+      datasets: [{
+        data: [tepat, late, izin, belum],
+        backgroundColor: ['#3b82f6', '#22c55e', '#f59e0b', '#ef4444'],
+        borderWidth: 2,
+        borderColor: '#ffffff'
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false }
+      },
+      cutout: '70%'
+    }
+  });
+}
+
+// 2. Fungsi Klik Tombol Kartu Filter
+function filterAdminToday(type) {
+  window.currentAdminFilter = type;
+  
+  const filterMap = { 
+    total: 'semua data', 
+    tepat: 'tepat waktu', 
+    late: 'terlambat', 
+    belum: 'belum absen' 
+  };
+  
+  const elLabel = document.getElementById('filterLabel');
+  if (elLabel) elLabel.innerText = filterMap[type] || 'semua data';
+
+  renderAdminLiveList(window.cachedTodayData, window.cachedAllUsers);
+}
+
+// 3. Fungsi Render Data & Filtering Live List
+function renderAdminLiveList(todayData, allUsers) {
+  if (todayData && todayData.length > 0) window.cachedTodayData = todayData;
+  if (allUsers && allUsers.length > 0) window.cachedAllUsers = allUsers;
 
   const activeRecords = window.cachedTodayData || [];
   const activeUsers = window.cachedAllUsers || [];
+  const activeFilter = window.currentAdminFilter || 'total';
 
-  // 2. Olah & Petakan Data
   let tepat = 0, late = 0, belum = 0, izin = 0;
   const recordMap = {};
 
@@ -912,7 +965,6 @@ function renderAdminLiveList(todayData, allUsers) {
     });
   }
 
-  // 3. Update Angka Statistik
   const totalCount = activeUsers.length > 0 ? activeUsers.length : activeRecords.length;
   
   const elTotal = document.getElementById('cntTotal');
@@ -925,12 +977,10 @@ function renderAdminLiveList(todayData, allUsers) {
   if (elLate) elLate.innerText = late;
   if (elBelum) elBelum.innerText = belum;
 
-  // 4. Update Diagram Donut
-  if (typeof renderAdminChart === 'function') {
-    renderAdminChart(tepat, late, izin, belum);
-  }
+  // Render Diagram
+  renderAdminChart(tepat, late, izin, belum);
 
-  // 5. Render Daftar Guru Berdasarkan Filter
+  // Render Daftar Guru
   const listContainer = document.getElementById('adminLiveList');
   if (!listContainer) return;
   listContainer.innerHTML = '';
@@ -954,10 +1004,15 @@ function renderAdminLiveList(todayData, allUsers) {
     const stLower = String(status).toLowerCase();
 
     let isMatch = false;
-    if (currentAdminFilter === 'total') isMatch = true;
-    else if (currentAdminFilter === 'tepat' && (stLower.includes('tepat') || stLower.includes('hadir'))) isMatch = true;
-    else if (currentAdminFilter === 'late' && (stLower.includes('terlambat') || stLower.includes('late'))) isMatch = true;
-    else if (currentAdminFilter === 'belum' && (!rec || stLower.includes('belum'))) isMatch = true;
+    if (activeFilter === 'total') {
+      isMatch = true;
+    } else if (activeFilter === 'tepat') {
+      isMatch = rec && (stLower.includes('tepat') || stLower.includes('hadir'));
+    } else if (activeFilter === 'late') {
+      isMatch = rec && (stLower.includes('terlambat') || stLower.includes('late'));
+    } else if (activeFilter === 'belum') {
+      isMatch = !rec || stLower.includes('belum');
+    }
 
     if (!isMatch) return;
     matchCount++;
