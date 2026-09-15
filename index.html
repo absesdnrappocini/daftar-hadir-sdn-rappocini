@@ -553,11 +553,11 @@ function renderRiwayatTable(data) {
     const fotoPulangUrl = r.fotoPulang || r.linkFotoPulang;
 
     // 2. Tautan Titik Lokasi Google Maps (Masuk & Pulang)
-    const locMasuk = r.lokasiMasuk || r.koordinatMasuk || r.latMasuk;
-    const locPulang = r.lokasiPulang || r.koordinatPulang || r.latPulang;
+    const locMasuk = r['Lokasi Masuk'] || r.lokasiMasuk || r.koordinatMasuk || r.latMasuk || r.lokasi_masuk || r.lokasi;
+    const locPulang = r['Lokasi Pulang'] || r.lokasiPulang || r.koordinatPulang || r.latPulang || r.lokasi_pulang;
 
-    const mapMasukUrl = locMasuk && locMasuk !== '-' ? (String(locMasuk).startsWith('http') ? locMasuk : `https://www.google.com/maps?q=${encodeURIComponent(locMasuk)}`) : null;
-    const mapPulangUrl = locPulang && locPulang !== '-' ? (String(locPulang).startsWith('http') ? locPulang : `https://www.google.com/maps?q=${encodeURIComponent(locPulang)}`) : null;
+    const mapMasukUrl = (locMasuk && locMasuk !== '-' && locMasuk !== 'undefined') ? (String(locMasuk).startsWith('http') ? locMasuk : `https://www.google.com/maps?q=${encodeURIComponent(locMasuk)}`) : null;
+    const mapPulangUrl = (locPulang && locPulang !== '-' && locPulang !== 'undefined') ? (String(locPulang).startsWith('http') ? locPulang : `https://www.google.com/maps?q=${encodeURIComponent(locPulang)}`) : null;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
