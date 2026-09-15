@@ -552,9 +552,19 @@ function renderRiwayatTable(data) {
     const fotoMasukUrl = r.fotoMasuk || r.foto;
     const fotoPulangUrl = r.fotoPulang || r.linkFotoPulang;
 
-    // 2. Tautan Titik Lokasi Google Maps (Masuk & Pulang)
-    const locMasuk = r['Lokasi Masuk'] || r.lokasiMasuk || r.koordinatMasuk || r.latMasuk || r.lokasi_masuk || r.lokasi;
-    const locPulang = r['Lokasi Pulang'] || r.lokasiPulang || r.koordinatPulang || r.latPulang || r.lokasi_pulang;
+    // 2. Tautan Titik Lokasi Google Maps (Otomatis mendeteksi variasi nama kolom)
+    const findLoc = (obj, type) => {
+      for (let k in obj) {
+        const key = k.toLowerCase().replace(/[^a-z0-9]/g, '');
+        if ((key.includes('lokasi') || key.includes('koordinat') || key.includes('lat')) && key.includes(type)) {
+          return obj[k];
+        }
+      }
+      return obj[type === 'masuk' ? 'Lokasi Masuk' : 'Lokasi Pulang'] || obj[type === 'masuk' ? 'lokasiMasuk' : 'lokasiPulang'];
+    };
+
+    const locMasuk = findLoc(r, 'masuk');
+    const locPulang = findLoc(r, 'pulang');
 
     const mapMasukUrl = (locMasuk && locMasuk !== '-' && locMasuk !== 'undefined') ? (String(locMasuk).startsWith('http') ? locMasuk : `https://www.google.com/maps?q=${encodeURIComponent(locMasuk)}`) : null;
     const mapPulangUrl = (locPulang && locPulang !== '-' && locPulang !== 'undefined') ? (String(locPulang).startsWith('http') ? locPulang : `https://www.google.com/maps?q=${encodeURIComponent(locPulang)}`) : null;
