@@ -878,83 +878,86 @@ function filterAdminToday(type) {
 
   if (typeof renderAdminLiveList === 'function') renderAdminLiveList();
 }
-// Variabel cache global untuk menyimpan data presensi
-window.cachedTodayData = window.cachedTodayData || [];
-window.cachedAllUsers = window.cachedAllUsers || [];
-
 function renderAdminLiveList(todayData, allUsers) {
-  // Simpan data ke cache jika dikirim dari server
-  if (todayData) window.cachedTodayData = todayData;
-  if (allUsers) window.cachedAllUsers = allUsers;
+  // 1. Deteksi data dari parameter atau variabel global bawaan
+  const records = todayData || window.cachedTodayData || window.todayData || window.dataHariIni || [];
+  const users = allUsers || window.cachedAllUsers || window.allUsers || window.daftarGuru || [];
 
-  const records = window.cachedTodayData || [];
-  const users = window.cachedAllUsers || [];
+  // Simpan ke cache jika data ditemukan
+  if (records.length > 0) window.cachedTodayData = records;
+  if (users.length > 0) window.cachedAllUsers = users;
 
-  // 1. Hitung Statistik & Pemetaan Data
+  const activeRecords = window.cachedTodayData || [];
+  const activeUsers = window.cachedAllUsers || [];
+
+  // 2. Olah & Petakan Data
   let tepat = 0, late = 0, belum = 0, izin = 0;
   const recordMap = {};
 
-  records.forEach(r => {
-    const namaKey = r.nama || r.namaGuru;
+  activeRecords.forEach(r => {
+    const namaKey = r.nama || r.Nama || r.namaGuru || r.NamaGuru || (Array.isArray(r) ? r[1] : '');
+    const st = String(r.status || r.Status || (Array.isArray(r) ? r[2] : '')).toLowerCase();
+
     if (namaKey) recordMap[namaKey] = r;
 
-    const st = (r.status || '').toLowerCase();
     if (st.includes('tepat') || st.includes('hadir')) tepat++;
     else if (st.includes('terlambat') || st.includes('late')) late++;
     else if (st.includes('izin') || st.includes('sakit')) izin++;
   });
 
-  // Hitung jumlah guru yang belum absen
-  if (users.length > 0) {
-    users.forEach(u => {
-      if (!recordMap[u.nama]) belum++;
+  if (activeUsers.length > 0) {
+    activeUsers.forEach(u => {
+      const uNama = u.nama || u.Nama || u.namaGuru || u;
+      if (!recordMap[uNama]) belum++;
     });
   }
 
-  // 2. Update Angka di Kartu Statistik
+  // 3. Update Angka Statistik
+  const totalCount = activeUsers.length > 0 ? activeUsers.length : activeRecords.length;
+  
   const elTotal = document.getElementById('cntTotal');
   const elTepat = document.getElementById('cntTepat');
   const elLate = document.getElementById('cntTerlambat');
   const elBelum = document.getElementById('cntBelum');
 
-  if (elTotal) elTotal.innerText = users.length > 0 ? users.length : records.length;
+  if (elTotal) elTotal.innerText = totalCount;
   if (elTepat) elTepat.innerText = tepat;
   if (elLate) elLate.innerText = late;
   if (elBelum) elBelum.innerText = belum;
 
-  // 3. Render / Gambar Ulang Diagram Donut
+  // 4. Update Diagram Donut
   if (typeof renderAdminChart === 'function') {
     renderAdminChart(tepat, late, izin, belum);
   }
 
-  // 4. Filter dan Tampilkan Daftar Guru di Bawahnya
+  // 5. Render Daftar Guru Berdasarkan Filter
   const listContainer = document.getElementById('adminLiveList');
   if (!listContainer) return;
   listContainer.innerHTML = '';
 
-  const masterList = users.length > 0 
-    ? users.map(u => ({ nama: u.nama, rec: recordMap[u.nama] }))
-    : records.map(r => ({ nama: r.nama || r.namaGuru, rec: r }));
+  const masterList = activeUsers.length > 0 
+    ? activeUsers.map(u => {
+        const n = u.nama || u.Nama || u;
+        return { nama: n, rec: recordMap[n] };
+      })
+    : activeRecords.map(r => {
+        const n = r.nama || r.Nama || r.namaGuru || (Array.isArray(r) ? r[1] : '');
+        return { nama: n, rec: r };
+      });
 
   let matchCount = 0;
 
   masterList.forEach(item => {
     const nama = item.nama;
     const rec = item.rec;
-    const status = rec ? (rec.status || 'Tepat Waktu') : 'Belum Absen';
-    const stLower = status.toLowerCase();
+    const status = rec ? (rec.status || rec.Status || 'Tepat Waktu') : 'Belum Absen';
+    const stLower = String(status).toLowerCase();
 
-    // Cek Kriteria Filter Kartu
     let isMatch = false;
-    if (currentAdminFilter === 'total') {
-      isMatch = true;
-    } else if (currentAdminFilter === 'tepat' && (stLower.includes('tepat') || stLower.includes('hadir'))) {
-      isMatch = true;
-    } else if (currentAdminFilter === 'late' && (stLower.includes('terlambat') || stLower.includes('late'))) {
-      isMatch = true;
-    } else if (currentAdminFilter === 'belum' && (!rec || stLower.includes('belum'))) {
-      isMatch = true;
-    }
+    if (currentAdminFilter === 'total') isMatch = true;
+    else if (currentAdminFilter === 'tepat' && (stLower.includes('tepat') || stLower.includes('hadir'))) isMatch = true;
+    else if (currentAdminFilter === 'late' && (stLower.includes('terlambat') || stLower.includes('late'))) isMatch = true;
+    else if (currentAdminFilter === 'belum' && (!rec || stLower.includes('belum'))) isMatch = true;
 
     if (!isMatch) return;
     matchCount++;
@@ -963,15 +966,20 @@ function renderAdminLiveList(todayData, allUsers) {
     div.className = 'py-2 flex items-center justify-between border-b border-slate-100 text-xs';
 
     if (rec) {
-      const mapUrl = rec.lokasiMasuk && rec.lokasiMasuk !== '-' ? `https://www.google.com/maps?q=${encodeURIComponent(rec.lokasiMasuk)}` : '#';
+      const jamM = rec.jamMasuk || rec.JamMasuk || rec.masuk || '-';
+      const jamP = rec.jamPulang || rec.JamPulang || rec.pulang || '-';
+      const locM = rec.lokasiMasuk || rec.LokasiMasuk || '-';
+      const fotoM = rec.fotoMasuk || rec.FotoMasuk || '-';
+      const mapUrl = locM !== '-' ? `https://www.google.com/maps?q=${encodeURIComponent(locM)}` : '#';
+
       div.innerHTML = `
         <div>
           <div class="font-bold text-slate-800">${nama}</div>
-          <div class="text-[11px] text-slate-500">Masuk: ${rec.jamMasuk || '-'} | Pulang: ${rec.jamPulang || '-'}</div>
+          <div class="text-[11px] text-slate-500">Masuk: ${jamM} | Pulang: ${jamP}</div>
         </div>
         <div class="flex gap-1">
-          ${rec.lokasiMasuk && rec.lokasiMasuk !== '-' ? `<a href="${mapUrl}" target="_blank" class="p-1.5 bg-blue-100 text-blue-600 rounded-lg text-xs">📍</a>` : ''}
-          ${rec.fotoMasuk && rec.fotoMasuk !== '-' ? `<a href="${rec.fotoMasuk}" target="_blank" class="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg text-xs">🖼️</a>` : ''}
+          ${locM !== '-' ? `<a href="${mapUrl}" target="_blank" class="p-1.5 bg-blue-100 text-blue-600 rounded-lg text-xs">📍</a>` : ''}
+          ${fotoM !== '-' ? `<a href="${fotoM}" target="_blank" class="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg text-xs">🖼️</a>` : ''}
         </div>
       `;
     } else {
