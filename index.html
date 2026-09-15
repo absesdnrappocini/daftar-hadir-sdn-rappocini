@@ -880,7 +880,7 @@ function filterAdminToday(type) {
 }
 // Variable Global & Instansi Chart
 window.currentAdminFilter = window.currentAdminFilter || 'total';
-let adminChartInstance = null;
+window.adminChartInstance = window.adminChartInstance || null;
 
 // 1. Fungsi Menggambar Diagram Donut
 function renderAdminChart(tepat, late, izin, belum) {
@@ -892,11 +892,11 @@ function renderAdminChart(tepat, late, izin, belum) {
     return;
   }
 
-  if (adminChartInstance) {
-    adminChartInstance.destroy();
+  if (window.adminChartInstance) {
+    window.adminChartInstance.destroy();
   }
 
-  adminChartInstance = new Chart(ctx, {
+  window.adminChartInstance = new Chart(ctx, {
     type: 'doughnut',
     data: {
       labels: ['Tepat Waktu', 'Terlambat', 'Izin/Sakit', 'Belum Absen'],
