@@ -411,10 +411,41 @@
     function executeSavePresensi(tipe, shift) {
       const video = document.getElementById('webcam');
       const canvas = document.getElementById('canvas');
-      canvas.width = video.videoWidth || 640;
-      canvas.height = video.videoHeight || 480;
-      canvas.getContext('2d').drawImage(video, 0, 0);
-      const photoBase64 = canvas.toDataURL('image/jpeg', 0.7);
+canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    // ==========================================
+    // --- CETAK WATERMARK KE ATAS FOTO ---
+    // ==========================================
+    const bannerHeight = 85;
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.65)'; // Latar belakang hitam transparan di bawah foto
+    ctx.fillRect(0, canvas.height - bannerHeight, canvas.width, bannerHeight);
+
+    ctx.fillStyle = '#ffffff'; // Warna teks putih
+    
+    // 1. Nama Sekolah & Nama Guru
+    ctx.font = 'bold 16px Arial';
+    const namaGuru = (typeof currentUser !== 'undefined' && currentUser.nama) ? currentUser.nama : '';
+    ctx.fillText(`SDN RAPPOCINI - ${namaGuru}`, 15, canvas.height - 58);
+
+    // 2. Tanggal & Waktu Presensi
+    ctx.font = '13px Arial';
+    const waktuSekarang = new Date().toLocaleString('id-ID', { 
+      day: '2-digit', month: 'long', year: 'numeric', 
+      hour: '2-digit', minute: '2-digit', second: '2-digit' 
+    }) + ' WITA';
+    ctx.fillText(`📅 ${waktuSekarang}`, 15, canvas.height - 35);
+
+    // 3. Status Jarak / Lokasi
+    const textJarakEl = document.getElementById('textJarak');
+    const infoJarak = textJarakEl ? `Jarak Lokasi: ${textJarakEl.innerText} meter` : 'Lokasi Terverifikasi';
+    ctx.fillText(`📍 ${infoJarak}`, 15, canvas.height - 14);
+    // ==========================================
+
+    const photoBase64 = canvas.toDataURL('image/jpeg', 0.7);
 
       const jurnal = document.getElementById('jurnalInput').value;
 
