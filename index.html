@@ -269,7 +269,7 @@
       <button onclick="switchTab('Request')" id="navRequest" class="flex flex-col items-center">
         <i class="fa-solid fa-paper-plane text-base mb-0.5"></i> Izin
       </button>
-      <button id="navLogoutGuru" onclick="doLogout()" class="hidden flex flex-col items-center text-slate-400 hover:text-red-500">
+      <button id="navLogoutGuru" onclick="doLogout()" class="flex flex-col items-center text-slate-400 hover:text-red-500">
       <i class="fa-solid fa-right-from-bracket text-base mb-0.5"></i>
       <span>Keluar</span>
     </button>
@@ -727,7 +727,7 @@ canvas.width = video.videoWidth || 640;
   document.getElementById('nav' + tabName).classList.add('nav-active');
 
   // Mengatur agar Admin & Guru masing-masing hanya 4 menu
-  if (currentUser && currentUser.role === 'ADMIN') {
+  if (currentUser && String(currentUser.role).toUpperCase() === 'ADMIN') {
     document.getElementById('navAdmin').classList.remove('hidden');
     document.getElementById('navLogoutGuru').classList.add('hidden');
   } else {
