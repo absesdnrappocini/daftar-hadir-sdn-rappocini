@@ -12,23 +12,6 @@
   <!-- SheetJS CDN untuk Export Excel -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <script>
-    tailwind.config = {
-      theme: {
-        extend: {
-          colors: {
-            brand: {
-              50: '#f0f9ff',
-              100: '#e0f2fe',
-              500: '#0284c7',
-              600: '#0284c7',
-              700: '#0369a1',
-            }
-          }
-        }
-      }
-    }
-  </script>
   <style>
     body { -webkit-tap-highlight-color: transparent; }
     .no-scrollbar::-webkit-scrollbar { display: none; }
@@ -61,7 +44,7 @@
           <i class="fa-solid fa-right-to-bracket"></i> Masuk Sistem
         </button>
       </form>
-      <p class="text-[10px] text-slate-400">Default Guru: 123 | Admin: admin</p>
+      <p class="text-[10px] text-slate-400">Atur Akun & Password di Sheet "Users"</p>
     </div>
   </div>
 
@@ -130,12 +113,12 @@
             </div>
           </div>
 
-          <!-- FORM JURNAL MENGAJAR -->
+          <!-- FORM JURNAL MENGAJAR (OPSIONAL) -->
           <div class="mt-4">
             <label class="block text-xs font-semibold text-slate-700 mb-1">
-              Jurnal Mengajar / Catatan Harian <span class="text-rose-500">*</span>
+              Jurnal Mengajar / Catatan Harian <span class="text-slate-400 font-normal">(Opsional)</span>
             </label>
-            <textarea id="input-jurnal" rows="3" placeholder="Tuliskan ringkasan materi pembelajaran atau kegiatan hari ini..." 
+            <textarea id="input-jurnal" rows="3" placeholder="Tuliskan ringkasan materi pembelajaran atau kegiatan (opsional)..." 
               class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition"></textarea>
           </div>
 
@@ -180,11 +163,9 @@
           </div>
 
           <div class="flex items-center gap-2 pt-1">
-            <!-- TOMBOL UTAMA (WARNA BIRU) -->
             <button onclick="loadRiwayatData()" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-blue-600/20 active:scale-95 transition flex items-center justify-center gap-1.5">
               <i class="fa-solid fa-magnifying-glass"></i> Tampilkan Data
             </button>
-            <!-- TOMBOL SEKUNDER (OUTLINE EXPORT EXCEL) -->
             <button onclick="exportToExcel()" class="py-2.5 px-4 border border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-semibold text-xs rounded-xl active:scale-95 transition flex items-center justify-center gap-1.5">
               <i class="fa-solid fa-file-excel text-emerald-600"></i> Export Excel
             </button>
@@ -203,20 +184,21 @@
               <thead>
                 <tr class="bg-slate-50 text-[11px] font-bold text-slate-600 uppercase border-b border-slate-200">
                   <th class="p-3">TANGGAL</th>
+                  <th class="p-3">NAMA GURU</th>
                   <th class="p-3">STATUS</th>
                   <th class="p-3">MASUK</th>
                   <th class="p-3">PULANG</th>
                   <th class="p-3">JARAK MASUK</th>
                   <th class="p-3">JARAK PULANG</th>
-                  <th class="p-3 min-w-[180px]">JURNAL</th>
+                  <th class="p-3 min-w-[160px]">JURNAL</th>
                   <th class="p-3">FOTO MASUK</th>
                   <th class="p-3">FOTO PULANG</th>
-                  <th class="p-3">FILE IZIN/SAKIT</th>
+                  <th class="p-3">FILE IZIN</th>
                 </tr>
               </thead>
               <tbody id="table-body" class="divide-y divide-slate-100 text-xs text-slate-700">
                 <tr>
-                  <td colspan="10" class="p-8 text-center text-slate-400">
+                  <td colspan="11" class="p-8 text-center text-slate-400">
                     <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
                     <p>Memuat data presensi...</p>
                   </td>
@@ -246,7 +228,7 @@
       <!-- TAB 4: SETTING & INFO -->
       <div id="tab-setting" class="tab-content space-y-4 hidden">
         <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-4">
-          <h3 class="font-bold text-slate-700 text-xs border-b pb-2">Informasi Sekolah & Pengguna</h3>
+          <h3 class="font-bold text-slate-700 text-xs border-b pb-2">Informasi Akun & Akses</h3>
           <div class="text-xs space-y-2 text-slate-600">
             <div class="flex justify-between py-1 border-b border-slate-50">
               <span class="font-medium">Pengguna Terautentikasi</span>
@@ -257,11 +239,11 @@
               <span id="st-role" class="font-semibold text-slate-800">-</span>
             </div>
             <div class="flex justify-between py-1 border-b border-slate-50">
-              <span class="font-medium">Koordinat Target</span>
+              <span class="font-medium">Koordinat Sekolah</span>
               <span id="st-coords" class="font-semibold text-slate-800">-5.1500, 119.4300</span>
             </div>
             <div class="flex justify-between py-1 border-b border-slate-50">
-              <span class="font-medium">Maksimal Radius</span>
+              <span class="font-medium">Batas Radius</span>
               <span class="font-semibold text-slate-800">100 Meter</span>
             </div>
           </div>
@@ -288,8 +270,6 @@
 
         <!-- FORM CONTROLS -->
         <form id="form-izin" onsubmit="submitIzinForm(event)" class="p-5 space-y-3.5 text-xs">
-          
-          <!-- 1. JENIS PENGAJUAN -->
           <div>
             <label class="block font-semibold text-slate-700 mb-1">JENIS PENGAJUAN</label>
             <select id="iz-jenis" required class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white">
@@ -300,7 +280,6 @@
             </select>
           </div>
 
-          <!-- 2. RINCIAN PENGAJUAN -->
           <div>
             <label class="block font-semibold text-slate-700 mb-1">RINCIAN PENGAJUAN</label>
             <select id="iz-rincian" required class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white">
@@ -311,38 +290,31 @@
             </select>
           </div>
 
-          <!-- TANGGAL MULAI & SELESAI -->
           <div class="grid grid-cols-2 gap-3">
-            <!-- 3. TANGGAL MULAI -->
             <div>
               <label class="block font-semibold text-slate-700 mb-1">TANGGAL MULAI</label>
               <input type="date" id="iz-tgl-mulai" required onchange="calcJumlahHari()" class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
             </div>
-            <!-- 4. TANGGAL SELESAI -->
             <div>
               <label class="block font-semibold text-slate-700 mb-1">TANGGAL SELESAI</label>
               <input type="date" id="iz-tgl-selesai" required onchange="calcJumlahHari()" class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
             </div>
           </div>
 
-          <!-- 5. TEKS JUMLAH HARI -->
           <div class="text-right">
             <span id="iz-jumlah-hari" class="font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">1 hari.</span>
           </div>
 
-          <!-- 6. KETERANGAN -->
           <div>
             <label class="block font-semibold text-slate-700 mb-1">KETERANGAN</label>
             <textarea id="iz-keterangan" rows="3" placeholder="Tuliskan alasan singkat" required class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
           </div>
 
-          <!-- 7. LAMPIRAN -->
           <div>
             <label class="block font-semibold text-slate-700 mb-1">LAMPIRAN (OPSIONAL, BOLEH BEBERAPA)</label>
             <input type="file" id="iz-file" class="w-full text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition cursor-pointer">
           </div>
 
-          <!-- 8. TOMBOL KIRIM -->
           <div class="pt-2">
             <button type="submit" id="btn-submit-izin" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/20 active:scale-95 transition">
               Kirim Pengajuan
@@ -352,10 +324,10 @@
       </div>
     </div>
 
-    <!-- MODAL PREVIEW GAMBAR / FILE -->
+    <!-- MODAL PREVIEW GAMBAR / FOTO -->
     <div id="modal-preview" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
       <div class="relative max-w-lg w-full bg-white rounded-2xl p-2 overflow-hidden shadow-2xl">
-        <button onclick="closePreviewModal()" class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center">
+        <button onclick="closePreviewModal()" class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center hover:bg-black transition">
           <i class="fa-solid fa-xmark"></i>
         </button>
         <img id="img-preview" src="" alt="Preview Foto" class="w-full h-auto max-h-[80vh] object-contain rounded-xl">
@@ -365,38 +337,31 @@
     <!-- BOTTOM NAVIGATION BAR -->
     <nav class="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 shadow-lg z-40 max-w-3xl mx-auto">
       <div class="grid grid-cols-5 h-16 items-center">
-        
-        <!-- 1. HOME -->
         <button onclick="switchTab('absensi')" id="nav-absensi" class="nav-btn flex flex-col items-center justify-center text-blue-600">
           <i class="fa-solid fa-house text-base"></i>
           <span class="text-[10px] font-medium mt-1">Home</span>
         </button>
 
-        <!-- 2. JURNAL -->
         <button onclick="switchTab('riwayat')" id="nav-riwayat" class="nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600">
           <i class="fa-solid fa-book-open text-base"></i>
           <span class="text-[10px] font-medium mt-1">Jurnal</span>
         </button>
 
-        <!-- 3. ABSENSI (FLOATING CENTER) -->
         <div class="flex justify-center -mt-5">
           <button onclick="switchTab('absensi')" class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/40 active:scale-90 transition border-4 border-white">
             <i class="fa-solid fa-camera text-lg"></i>
           </button>
         </div>
 
-        <!-- 4. REQUEST -->
         <button onclick="switchTab('request')" id="nav-request" class="nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600">
           <i class="fa-solid fa-paper-plane text-base"></i>
           <span class="text-[10px] font-medium mt-1">Request</span>
         </button>
 
-        <!-- 5. SETTING -->
         <button onclick="switchTab('setting')" id="nav-setting" class="nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600">
           <i class="fa-solid fa-gear text-base"></i>
           <span class="text-[10px] font-medium mt-1">Setting</span>
         </button>
-
       </div>
     </nav>
 
@@ -404,7 +369,6 @@
 
   <!-- JAVASCRIPT LOGIC ENGINE -->
   <script>
-    // URL SCRIPT WEB APP BACKEND
     const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyGQhwDQOyZLyOlLwDPduymKRdIVb7qP4W2N20IyCiH5BFVa6hiuEN3J7V62-Blac5h/exec";
 
     let schoolLat = -5.1500;
@@ -418,7 +382,6 @@
     let globalRiwayatData = [];
     let currentUser = null;
 
-    // INITIALIZATION ON LOAD
     window.addEventListener('DOMContentLoaded', () => {
       startRealtimeClock();
       checkAuthSession();
@@ -491,7 +454,7 @@
       document.getElementById('app-wrapper').classList.remove('hidden');
 
       document.getElementById('prof-nama').innerText = currentUser.nama;
-      document.getElementById('prof-jabatan').innerText = `${currentUser.jabatan} • ID: ${currentUser.id}`;
+      document.getElementById('prof-jabatan').innerText = `${currentUser.jabatan} • ${currentUser.role}`;
       document.getElementById('st-user').innerText = `${currentUser.nama} (${currentUser.id})`;
       document.getElementById('st-role').innerText = currentUser.role;
       document.getElementById('st-coords').innerText = `${schoolLat}, ${schoolLng}`;
@@ -606,14 +569,9 @@
       return canvas.toDataURL('image/jpeg', 0.85);
     }
 
-    // 6. SUBMIT PRESENSI
+    // 6. SUBMIT PRESENSI (JURNAL OPSIONAL)
     async function submitPresensi(tipe) {
       const jurnalVal = document.getElementById('input-jurnal').value.trim();
-
-      if (!jurnalVal) {
-        alert('Wajib mengisi Jurnal Mengajar sebelum presensi!');
-        return;
-      }
 
       if (currentDistance > maxRadiusMeter) {
         if (!confirm(`Posisi Anda berjarak ${currentDistance}m (melebihi batas ${maxRadiusMeter}m). Tetap lanjutkan?`)) {
@@ -698,7 +656,7 @@
       const tbody = document.getElementById('table-body');
       tbody.innerHTML = `
         <tr>
-          <td colspan="10" class="p-8 text-center text-slate-400">
+          <td colspan="11" class="p-8 text-center text-slate-400">
             <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
             <p>Memfilter data...</p>
           </td>
@@ -731,7 +689,7 @@
       }
     }
 
-    // 9. RENDER RIWAYAT TABLE
+    // 9. RENDER RIWAYAT TABLE (DENGAN TAMPILAN GURU & LINK FOTO MODAL)
     function renderRiwayatTable(data) {
       const tbody = document.getElementById('table-body');
       document.getElementById('txt-total-row').innerText = `${data.length} Data`;
@@ -739,7 +697,7 @@
       if (!data || data.length === 0) {
         tbody.innerHTML = `
           <tr>
-            <td colspan="10" class="p-8 text-center text-slate-400">
+            <td colspan="11" class="p-8 text-center text-slate-400">
               <i class="fa-solid fa-inbox text-3xl mb-2"></i>
               <p>Tidak ada data presensi ditemukan.</p>
             </td>
@@ -759,17 +717,18 @@
         else if (st === 'cuti') badgeStyle = "bg-indigo-100 text-indigo-800";
 
         const fotoMasukHTML = (item.fotoMasuk && item.fotoMasuk !== '-') ? 
-          `<button onclick="openPreviewModal('${item.fotoMasuk}')" class="text-blue-600 hover:underline font-medium flex items-center gap-1"><i class="fa-solid fa-image"></i> Foto Masuk</button>` : '-';
+          `<button onclick="openPreviewModal('${item.fotoMasuk}')" class="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1"><i class="fa-solid fa-image"></i> Foto Masuk</button>` : '-';
 
         const fotoPulangHTML = (item.fotoPulang && item.fotoPulang !== '-') ? 
-          `<button onclick="openPreviewModal('${item.fotoPulang}')" class="text-blue-600 hover:underline font-medium flex items-center gap-1"><i class="fa-solid fa-image"></i> Foto Pulang</button>` : '-';
+          `<button onclick="openPreviewModal('${item.fotoPulang}')" class="text-blue-600 hover:text-blue-800 font-semibold flex items-center gap-1"><i class="fa-solid fa-image"></i> Foto Pulang</button>` : '-';
 
         const fileIzinHTML = (item.fileIzin && item.fileIzin !== '-') ? 
-          `<button onclick="openPreviewModal('${item.fileIzin}')" class="text-purple-600 hover:underline font-medium flex items-center gap-1"><i class="fa-solid fa-paperclip"></i> Lampiran</button>` : '-';
+          `<button onclick="openPreviewModal('${item.fileIzin}')" class="text-purple-600 hover:text-purple-800 font-semibold flex items-center gap-1"><i class="fa-solid fa-paperclip"></i> Lampiran</button>` : '-';
 
         return `
           <tr class="hover:bg-slate-50 transition border-b border-slate-100">
             <td class="p-3 font-semibold text-slate-800 whitespace-nowrap">${item.tanggal}</td>
+            <td class="p-3 font-medium text-slate-800 whitespace-nowrap">${item.nama}</td>
             <td class="p-3 whitespace-nowrap">
               <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${badgeStyle}">${item.status}</span>
             </td>
@@ -786,7 +745,7 @@
       }).join('');
     }
 
-    // 10. EXPORT TO EXCEL (SHEETJS)
+    // 10. EXPORT TO EXCEL
     function exportToExcel() {
       if (!globalRiwayatData || globalRiwayatData.length === 0) {
         alert("Tidak ada data untuk diexport!");
@@ -909,14 +868,11 @@
       });
     }
 
-    // 12. PREVIEW MODAL
+    // 12. PREVIEW MODAL IMAGES
     function openPreviewModal(url) {
-      if (url.includes('drive.google.com')) {
-        window.open(url, '_blank');
-      } else {
-        document.getElementById('img-preview').src = url;
-        document.getElementById('modal-preview').classList.remove('hidden');
-      }
+      if (!url || url === '-') return;
+      document.getElementById('img-preview').src = url;
+      document.getElementById('modal-preview').classList.remove('hidden');
     }
 
     function closePreviewModal() {
