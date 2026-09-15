@@ -878,7 +878,120 @@ function filterAdminToday(type) {
 
   if (typeof renderAdminLiveList === 'function') renderAdminLiveList();
 }
+// Variabel cache global untuk menyimpan data presensi
+window.cachedTodayData = window.cachedTodayData || [];
+window.cachedAllUsers = window.cachedAllUsers || [];
 
+function renderAdminLiveList(todayData, allUsers) {
+  // Simpan data ke cache jika dikirim dari server
+  if (todayData) window.cachedTodayData = todayData;
+  if (allUsers) window.cachedAllUsers = allUsers;
+
+  const records = window.cachedTodayData || [];
+  const users = window.cachedAllUsers || [];
+
+  // 1. Hitung Statistik & Pemetaan Data
+  let tepat = 0, late = 0, belum = 0, izin = 0;
+  const recordMap = {};
+
+  records.forEach(r => {
+    const namaKey = r.nama || r.namaGuru;
+    if (namaKey) recordMap[namaKey] = r;
+
+    const st = (r.status || '').toLowerCase();
+    if (st.includes('tepat') || st.includes('hadir')) tepat++;
+    else if (st.includes('terlambat') || st.includes('late')) late++;
+    else if (st.includes('izin') || st.includes('sakit')) izin++;
+  });
+
+  // Hitung jumlah guru yang belum absen
+  if (users.length > 0) {
+    users.forEach(u => {
+      if (!recordMap[u.nama]) belum++;
+    });
+  }
+
+  // 2. Update Angka di Kartu Statistik
+  const elTotal = document.getElementById('cntTotal');
+  const elTepat = document.getElementById('cntTepat');
+  const elLate = document.getElementById('cntTerlambat');
+  const elBelum = document.getElementById('cntBelum');
+
+  if (elTotal) elTotal.innerText = users.length > 0 ? users.length : records.length;
+  if (elTepat) elTepat.innerText = tepat;
+  if (elLate) elLate.innerText = late;
+  if (elBelum) elBelum.innerText = belum;
+
+  // 3. Render / Gambar Ulang Diagram Donut
+  if (typeof renderAdminChart === 'function') {
+    renderAdminChart(tepat, late, izin, belum);
+  }
+
+  // 4. Filter dan Tampilkan Daftar Guru di Bawahnya
+  const listContainer = document.getElementById('adminLiveList');
+  if (!listContainer) return;
+  listContainer.innerHTML = '';
+
+  const masterList = users.length > 0 
+    ? users.map(u => ({ nama: u.nama, rec: recordMap[u.nama] }))
+    : records.map(r => ({ nama: r.nama || r.namaGuru, rec: r }));
+
+  let matchCount = 0;
+
+  masterList.forEach(item => {
+    const nama = item.nama;
+    const rec = item.rec;
+    const status = rec ? (rec.status || 'Tepat Waktu') : 'Belum Absen';
+    const stLower = status.toLowerCase();
+
+    // Cek Kriteria Filter Kartu
+    let isMatch = false;
+    if (currentAdminFilter === 'total') {
+      isMatch = true;
+    } else if (currentAdminFilter === 'tepat' && (stLower.includes('tepat') || stLower.includes('hadir'))) {
+      isMatch = true;
+    } else if (currentAdminFilter === 'late' && (stLower.includes('terlambat') || stLower.includes('late'))) {
+      isMatch = true;
+    } else if (currentAdminFilter === 'belum' && (!rec || stLower.includes('belum'))) {
+      isMatch = true;
+    }
+
+    if (!isMatch) return;
+    matchCount++;
+
+    const div = document.createElement('div');
+    div.className = 'py-2 flex items-center justify-between border-b border-slate-100 text-xs';
+
+    if (rec) {
+      const mapUrl = rec.lokasiMasuk && rec.lokasiMasuk !== '-' ? `https://www.google.com/maps?q=${encodeURIComponent(rec.lokasiMasuk)}` : '#';
+      div.innerHTML = `
+        <div>
+          <div class="font-bold text-slate-800">${nama}</div>
+          <div class="text-[11px] text-slate-500">Masuk: ${rec.jamMasuk || '-'} | Pulang: ${rec.jamPulang || '-'}</div>
+        </div>
+        <div class="flex gap-1">
+          ${rec.lokasiMasuk && rec.lokasiMasuk !== '-' ? `<a href="${mapUrl}" target="_blank" class="p-1.5 bg-blue-100 text-blue-600 rounded-lg text-xs">📍</a>` : ''}
+          ${rec.fotoMasuk && rec.fotoMasuk !== '-' ? `<a href="${rec.fotoMasuk}" target="_blank" class="p-1.5 bg-emerald-100 text-emerald-600 rounded-lg text-xs">🖼️</a>` : ''}
+        </div>
+      `;
+    } else {
+      div.innerHTML = `
+        <div>
+          <div class="font-bold text-slate-800">${nama}</div>
+          <div class="text-[11px] text-rose-500 font-semibold">Belum Absen</div>
+        </div>
+        <button onclick="setStatusManual('${nama}')" class="px-2 py-1 bg-amber-500 text-white text-[10px] rounded-md font-medium hover:bg-amber-600 shadow-sm">
+          + Status
+        </button>
+      `;
+    }
+    listContainer.appendChild(div);
+  });
+
+  if (matchCount === 0) {
+    listContainer.innerHTML = `<div class="text-center py-4 text-slate-400 text-xs">Tidak ada data untuk kategori ini</div>`;
+  }
+}
 // 3. Ubah Status Manual untuk Guru yang Belum Absen
 function setStatusManual(namaGuru) {
   const status = prompt(`Pilih status untuk ${namaGuru}:\n(Ketik: Izin / Sakit / Alpa)`, 'Izin');
