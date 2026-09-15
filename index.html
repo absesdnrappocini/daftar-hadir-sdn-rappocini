@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Aplikasi Presensi Guru SDN Rappocini</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome 6 CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- SheetJS CDN untuk Export Excel -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              500: '#0284c7',
+              600: '#0284c7',
+              700: '#0369a1',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { -webkit-tap-highlight-color: transparent; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 antialiased min-h-screen pb-24 font-sans select-none">
+
+  <!-- TOP HEADER PROFILE -->
+  <header class="bg-gradient-to-r from-blue-700 to-indigo-800 text-white shadow-lg sticky top-0 z-30">
+    <div class="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div class="flex items-center space-x-3">
+        <div class="w-12 h-12 rounded-full bg-white/20 backdrop-blur border border-white/30 flex items-center justify-center font-bold text-lg shadow-inner">
+          <i class="fa-solid fa-user-tie text-2xl text-amber-300"></i>
+        </div>
+        <div>
+          <h1 id="prof-nama" class="font-bold text-base leading-tight">Nurbaya, S.Pd.</h1>
+          <p id="prof-jabatan" class="text-xs text-blue-100">Guru Kelas IV • SDN Rappocini</p>
+        </div>
+      </div>
+      <div class="text-right">
+        <div id="wita-clock" class="text-xs font-mono bg-black/20 px-2.5 py-1 rounded-md border border-white/10 font-semibold tracking-wider">
+          00:00:00 WITA
+        </div>
+        <p id="wita-date" class="text-[10px] text-blue-200 mt-0.5">Jumat, 11 Sep 2026</p>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-3xl mx-auto px-4 pt-4">
+
+    <!-- TAB 1: ABSENSI UTAMA (HOME) -->
+    <div id="tab-absensi" class="tab-content space-y-4">
+      
+      <!-- CARD KAMERA & LOKASI -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 overflow-hidden">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="font-bold text-slate-700 flex items-center gap-2">
+            <i class="fa-solid fa-camera text-blue-600"></i> Presensi Selfie Kamera
+          </h2>
+          <span id="gps-status-badge" class="text-[11px] px-2.5 py-1 rounded-full font-medium bg-amber-100 text-amber-800 flex items-center gap-1">
+            <i class="fa-solid fa-spinner fa-spin"></i> Mendeteksi Lokasi...
+          </span>
+        </div>
+
+        <!-- CAMERA PREVIEW & WATERMARK CANVAS -->
+        <div class="relative w-full aspect-[4/3] bg-slate-900 rounded-xl overflow-hidden shadow-inner flex items-center justify-center">
+          <video id="webcam" autoplay playsinline class="w-full h-full object-cover"></video>
+          <canvas id="watermark-canvas" class="hidden"></canvas>
+          
+          <!-- OVERLAY MODAL / ERROR CAMERA -->
+          <div id="camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center text-white bg-slate-900/90 p-4 text-center hidden">
+            <i class="fa-solid fa-video-slash text-4xl mb-2 text-rose-400"></i>
+            <p class="text-sm font-semibold">Kamera Tidak Aktif</p>
+            <p class="text-xs text-slate-300 mt-1">Izinkan akses kamera pada browser Anda.</p>
+            <button onclick="initCamera()" class="mt-3 px-3 py-1.5 bg-blue-600 text-white rounded-lg text-xs font-medium hover:bg-blue-700 transition">
+              Aktivkan Kamera
+            </button>
+          </div>
+
+          <!-- GPS DISTANCE OVERLAY BADGE -->
+          <div class="absolute bottom-2 left-2 right-2 bg-black/60 backdrop-blur-md rounded-lg p-2 text-white text-xs flex justify-between items-center border border-white/10">
+            <div class="truncate">
+              <i class="fa-solid fa-location-dot text-rose-400 mr-1"></i>
+              <span id="txt-distance">Jarak ke Sekolah: - m</span>
+            </div>
+            <span id="badge-radius" class="text-[10px] bg-slate-700 px-2 py-0.5 rounded font-mono">Batas: 100m</span>
+          </div>
+        </div>
+
+        <!-- FORM JURNAL HARIAN -->
+        <div class="mt-4">
+          <label class="block text-xs font-semibold text-slate-700 mb-1">
+            Jurnal Kegiatan / Mengajar Harian <span class="text-rose-500">*</span>
+          </label>
+          <textarea id="input-jurnal" rows="3" placeholder="Tuliskan ringkasan kegiatan pembelajaran atau tugas hari ini..." 
+            class="w-full px-3 py-2 text-xs border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition"></textarea>
+        </div>
+
+        <!-- BUTTON ACTION PRESENSI -->
+        <div class="grid grid-cols-2 gap-3 mt-4">
+          <button id="btn-absen-masuk" onclick="submitPresensi('MASUK')" 
+            class="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm rounded-xl shadow-md shadow-emerald-600/20 active:scale-95 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-right-to-bracket"></i> Absen Masuk
+          </button>
+          <button id="btn-absen-pulang" onclick="submitPresensi('PULANG')" 
+            class="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold text-sm rounded-xl shadow-md shadow-amber-600/20 active:scale-95 transition flex items-center justify-center gap-2">
+            <i class="fa-solid fa-right-from-bracket"></i> Absen Pulang
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: RIWAYAT PRESENSI & FILTERS -->
+    <div id="tab-riwayat" class="tab-content space-y-4 hidden">
+      
+      <!-- CARD TOP FILTER -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-3">
+        <h3 class="font-bold text-slate-700 text-sm flex items-center gap-2">
+          <i class="fa-solid fa-filter text-blue-600"></i> Filter Data Riwayat
+        </h3>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-500 mb-1">Pilih Tanggal</label>
+            <input type="date" id="filter-date" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-500 mb-1">Status Presence</label>
+            <select id="filter-status" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+              <option value="Semua">Semua Status</option>
+              <option value="Hadir">Hadir</option>
+              <option value="Terlambat">Terlambat</option>
+              <option value="Izin">Izin</option>
+              <option value="Sakit">Sakit</option>
+              <option value="Alpa">Alpa</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-2 pt-1">
+          <!-- TOMBOL UTAMA (WARNA BIRU) -->
+          <button onclick="loadRiwayatData()" class="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs rounded-xl shadow-md shadow-blue-600/20 active:scale-95 transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-magnifying-glass"></i> Tampilkan Data
+          </button>
+          <!-- TOMBOL SEKUNDER (OUTLINE EXPORT EXCEL) -->
+          <button onclick="exportToExcel()" class="py-2.5 px-4 border border-emerald-600 text-emerald-700 hover:bg-emerald-50 font-semibold text-xs rounded-xl active:scale-95 transition flex items-center justify-center gap-1.5">
+            <i class="fa-solid fa-file-excel text-emerald-600"></i> Export Excel
+          </button>
+        </div>
+      </div>
+
+      <!-- TABEL RIWAYAT PRESENSI -->
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <div class="p-3 border-b border-slate-100 flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-700">Daftar Rekapitulasi Presensi</span>
+          <span id="txt-total-row" class="text-[10px] bg-slate-100 px-2 py-0.5 rounded text-slate-600 font-mono">0 Data</span>
+        </div>
+        
+        <div class="overflow-x-auto no-scrollbar">
+          <table class="w-full text-left border-collapse min-w-[900px]">
+            <thead>
+              <tr class="bg-slate-50 text-[11px] font-bold text-slate-600 uppercase border-b border-slate-200">
+                <th class="p-3">Tanggal</th>
+                <th class="p-3">Status</th>
+                <th class="p-3">Masuk</th>
+                <th class="p-3">Pulang</th>
+                <th class="p-3">Jarak Masuk</th>
+                <th class="p-3">Jarak Pulang</th>
+                <th class="p-3 min-w-[180px]">Jurnal</th>
+                <th class="p-3">Foto Masuk</th>
+                <th class="p-3">Foto Pulang</th>
+                <th class="p-3">File Izin/Sakit</th>
+              </tr>
+            </thead>
+            <tbody id="table-body" class="divide-y divide-slate-100 text-xs text-slate-700">
+              <tr>
+                <td colspan="10" class="p-8 text-center text-slate-400">
+                  <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
+                  <p>Memuat data presensi...</p>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: REQUEST PERMOHONAN -->
+    <div id="tab-request" class="tab-content space-y-4 hidden">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 text-center">
+        <div class="w-14 h-14 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3 text-2xl">
+          <i class="fa-solid fa-paper-plane"></i>
+        </div>
+        <h3 class="font-bold text-slate-800 text-base">Pengajuan Izin & Ketidakhadiran</h3>
+        <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1 mb-4">
+          Ajukan permohonan izin, sakit, cuti, atau klarifikasi lupa absen langsung melalui sistem.
+        </p>
+        <button onclick="openIzinModal()" class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs rounded-xl shadow-md shadow-blue-600/20 active:scale-95 transition inline-flex items-center gap-2">
+          <i class="fa-solid fa-plus"></i> Buat Pengajuan Baru
+        </button>
+      </div>
+    </div>
+
+    <!-- TAB 4: SETTING & INFO -->
+    <div id="tab-setting" class="tab-content space-y-4 hidden">
+      <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 space-y-4">
+        <h3 class="font-bold text-slate-700 text-sm border-b pb-2">Informasi Sekolah & Sistem</h3>
+        <div class="text-xs space-y-2 text-slate-600">
+          <div class="flex justify-between py-1 border-b border-slate-50">
+            <span class="font-medium">Nama Sekolah</span>
+            <span class="font-semibold text-slate-800">SDN Rappocini</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-slate-50">
+            <span class="font-medium">Zona Waktu Sistem</span>
+            <span class="font-semibold text-slate-800">WITA (Asia/Makassar)</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-slate-50">
+            <span class="font-medium">Koordinat Sekolah</span>
+            <span class="font-semibold text-slate-800">-5.158145, 119.432312</span>
+          </div>
+          <div class="flex justify-between py-1 border-b border-slate-50">
+            <span class="font-medium">Maksimal Radius Masuk</span>
+            <span class="font-semibold text-slate-800">100 Meter</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODAL POPUP "AJUKAN IZIN" -->
+  <div id="modal-izin" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      
+      <!-- HEADER MODAL -->
+      <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+        <h3 class="font-bold text-slate-800 text-base">Ajukan izin</h3>
+        <button onclick="closeIzinModal()" class="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- FORM CONTROLS -->
+      <form id="form-izin" onsubmit="submitIzinForm(event)" class="p-5 space-y-3.5 text-xs">
+        
+        <!-- 1. JENIS PENGAJUAN -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">JENIS PENGAJUAN</label>
+          <select id="iz-jenis" required class="w-full px-3 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+            <option value="IZIN">IZIN</option>
+            <option value="SAKIT">SAKIT</option>
+            <option value="CUTI">CUTI</option>
+            <option value="LUPA ABSEN">LUPA ABSEN</option>
+          </select>
+        </div>
+
+        <!-- 2. RINCIAN PENGAJUAN -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">RINCIAN PENGAJUAN</label>
+          <select id="iz-rincian" required class="w-full px-3 py-2.5 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none bg-white">
+            <option value="Izin Keperluan Keluarga">Izin Keperluan Keluarga</option>
+            <option value="Sakit Dengan Surat Dokter">Sakit Dengan Surat Dokter</option>
+            <option value="Tugas Luar Dinas">Tugas Luar Dinas</option>
+            <option value="Lupa Absen Masuk/Pulang">Lupa Absen Masuk/Pulang</option>
+          </select>
+        </div>
+
+        <!-- TANGGAL MULAI & SELESAI -->
+        <div class="grid grid-cols-2 gap-3">
+          <!-- 3. TANGGAL MULAI -->
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">TANGGAL MULAI</label>
+            <input type="date" id="iz-tgl-mulai" required onchange="calcJumlahHari()" class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+          <!-- 4. TANGGAL SELESAI -->
+          <div>
+            <label class="block font-semibold text-slate-700 mb-1">TANGGAL SELESAI</label>
+            <input type="date" id="iz-tgl-selesai" required onchange="calcJumlahHari()" class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none">
+          </div>
+        </div>
+
+        <!-- 5. TEKS JUMLAH HARI -->
+        <div class="text-right">
+          <span id="iz-jumlah-hari" class="font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg">1 hari.</span>
+        </div>
+
+        <!-- 6. KETERANGAN -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">KETERANGAN</label>
+          <textarea id="iz-keterangan" rows="3" placeholder="Tuliskan alasan singkat" required class="w-full px-3 py-2 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none"></textarea>
+        </div>
+
+        <!-- 7. LAMPIRAN -->
+        <div>
+          <label class="block font-semibold text-slate-700 mb-1">LAMPIRAN (OPSIONAL, BOLEH BEBERAPA)</label>
+          <input type="file" id="iz-file" class="w-full text-slate-500 file:mr-3 file:py-2 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition cursor-pointer">
+        </div>
+
+        <!-- 8. TOMBOL KIRIM -->
+        <div class="pt-2">
+          <button type="submit" id="btn-submit-izin" class="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md shadow-blue-600/20 active:scale-95 transition">
+            Kirim Pengajuan
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL PREVIEW GAMBAR / FILE -->
+  <div id="modal-preview" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="relative max-w-lg w-full bg-white rounded-2xl p-2 overflow-hidden shadow-2xl">
+      <button onclick="closePreviewModal()" class="absolute top-3 right-3 z-10 w-8 h-8 rounded-full bg-black/50 text-white flex items-center justify-center">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+      <img id="img-preview" src="" alt="Preview Foto" class="w-full h-auto max-h-[80vh] object-contain rounded-xl">
+    </div>
+  </div>
+
+  <!-- BOTTOM NAVIGATION BAR -->
+  <nav class="fixed bottom-0 inset-x-0 bg-white border-t border-slate-200 shadow-lg z-40 max-w-3xl mx-auto">
+    <div class="grid grid-cols-5 h-16 items-center">
+      
+      <!-- 1. HOME -->
+      <button onclick="switchTab('absensi')" id="nav-absensi" class="nav-btn flex flex-col items-center justify-center text-blue-600">
+        <i class="fa-solid fa-house text-lg"></i>
+        <span class="text-[10px] font-medium mt-1">Home</span>
+      </button>
+
+      <!-- 2. JURNAL / RIWAYAT -->
+      <button onclick="switchTab('riwayat')" id="nav-riwayat" class="nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600">
+        <i class="fa-solid fa-book-open text-lg"></i>
+        <span class="text-[10px] font-medium mt-1">Jurnal</span>
+      </button>
+
+      <!-- 3. ABSENSI (CENTER FLOATING BUTTON) -->
+      <div class="flex justify-center -mt-5">
+        <button onclick="switchTab('absensi')" class="w-12 h-12 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/40 active:scale-90 transition border-4 border-white">
+          <i class="fa-solid fa-camera text-xl"></i>
+        </button>
+      </div>
+
+      <!-- 4. REQUEST -->
+      <button onclick="switchTab('request')" id="nav-request" class="nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600">
+        <i class="fa-solid fa-paper-plane text-lg"></i>
+        <span class="text-[10px] font-medium mt-1">Request</span>
+      </button>
+
+      <!-- 5. SETTING -->
+      <button onclick="switchTab('setting')" id="nav-setting" class="nav-btn flex flex-col items-center justify-center text-slate-400 hover:text-slate-600">
+        <i class="fa-solid fa-gear text-lg"></i>
+        <span class="text-[10px] font-medium mt-1">Setting</span>
+      </button>
+
+    </div>
+  </nav>
+
+  <!-- JAVASCRIPT LOGIC ENGINE -->
+  <script>
+    // KOORDINAT TARGET SDN RAPPOCINI
+    const SCHOOL_LAT = -5.158145;
+    const SCHOOL_LNG = 119.432312;
+    const MAX_ALLOWED_DISTANCE = 100; // Meter
+
+    let userLat = null;
+    let userLng = null;
+    let currentDistance = 999999;
+    let mediaStream = null;
+    let globalRiwayatData = [];
+
+    // URL Apps Script Web App Spesifik Pengguna
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyGQhwDQOyZLyOlLwDPduymKRdIVb7qP4W2N20IyCiH5BFVa6hiuEN3J7V62-Blac5h/exec";
+
+    // INITIALIZATION ON LOAD
+    window.addEventListener('DOMContentLoaded', () => {
+      startRealtimeClock();
+      initCamera();
+      initGeolocation();
+      fetchInitialData();
+      
+      // Default Date Input Modal
+      const todayStr = new Date().toISOString().substring(0, 10);
+      document.getElementById('iz-tgl-mulai').value = todayStr;
+      document.getElementById('iz-tgl-selesai').value = todayStr;
+      calcJumlahHari();
+    });
+
+    // 1. JAM WITA REALTIME
+    function startRealtimeClock() {
+      setInterval(() => {
+        const now = new Date();
+        const optionsTime = { timeZone: 'Asia/Makassar', hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' };
+        const optionsDate = { timeZone: 'Asia/Makassar', weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' };
+        
+        document.getElementById('wita-clock').innerText = new Intl.DateTimeFormat('id-ID', optionsTime).format(now) + ' WITA';
+        document.getElementById('wita-date').innerText = new Intl.DateTimeFormat('id-ID', optionsDate).format(now);
+      }, 1000);
+    }
+
+    // 2. KAMERA STREAM HANDLER
+    async function initCamera() {
+      const video = document.getElementById('webcam');
+      const placeholder = document.getElementById('camera-placeholder');
+
+      try {
+        mediaStream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false
+        });
+        video.srcObject = mediaStream;
+        placeholder.classList.add('hidden');
+      } catch (err) {
+        console.error("Camera Error:", err);
+        placeholder.classList.remove('hidden');
+      }
+    }
+
+    // 3. GEOLOCATION & HAVERSINE DISTANCE
+    function initGeolocation() {
+      const badge = document.getElementById('gps-status-badge');
+      const txtDist = document.getElementById('txt-distance');
+
+      if (!navigator.geolocation) {
+        badge.className = "text-[11px] px-2.5 py-1 rounded-full font-medium bg-rose-100 text-rose-800";
+        badge.innerHTML = '<i class="fa-solid fa-triangle-exclamation"></i> GPS Tidak Didukung';
+        return;
+      }
+
+      navigator.geolocation.watchPosition(
+        (pos) => {
+          userLat = pos.coords.latitude;
+          userLng = pos.coords.longitude;
+          currentDistance = calcHaversine(userLat, userLng, SCHOOL_LAT, SCHOOL_LNG);
+
+          txtDist.innerText = `Jarak ke Sekolah: ${currentDistance} m`;
+
+          if (currentDistance <= MAX_ALLOWED_DISTANCE) {
+            badge.className = "text-[11px] px-2.5 py-1 rounded-full font-medium bg-emerald-100 text-emerald-800";
+            badge.innerHTML = '<i class="fa-solid fa-circle-check"></i> Dalam Jangkauan';
+          } else {
+            badge.className = "text-[11px] px-2.5 py-1 rounded-full font-medium bg-rose-100 text-rose-800";
+            badge.innerHTML = '<i class="fa-solid fa-circle-xmark"></i> Luar Jangkauan';
+          }
+        },
+        (err) => {
+          badge.className = "text-[11px] px-2.5 py-1 rounded-full font-medium bg-rose-100 text-rose-800";
+          badge.innerHTML = '<i class="fa-solid fa-location-crosshairs"></i> Gagal GPS';
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    }
+
+    // HAVERSINE FORMULA (Meters)
+    function calcHaversine(lat1, lon1, lat2, lon2) {
+      const R = 6371000;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      return Math.round(R * c);
+    }
+
+    // 4. WATERMARK BURN ON CAMERA CANVAS
+    function captureSnapshotWithWatermark() {
+      const video = document.getElementById('webcam');
+      const canvas = document.getElementById('watermark-canvas');
+      const ctx = canvas.getContext('2d');
+
+      canvas.width = video.videoWidth || 640;
+      canvas.height = video.videoHeight || 480;
+
+      // Draw original video frame
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Draw Overlay Dark Banner
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+      ctx.fillRect(0, canvas.height - 80, canvas.width, 80);
+
+      // Draw Text Watermark
+      const now = new Date();
+      const timeStr = now.toLocaleTimeString('id-ID', { timeZone: 'Asia/Makassar' }) + ' WITA';
+      const dateStr = now.toLocaleDateString('id-ID', { timeZone: 'Asia/Makassar', day: '2-digit', month: 'short', year: 'numeric' });
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 16px sans-serif';
+      ctx.fillText('SDN RAPPOCINI - Nurbaya, S.Pd.', 15, canvas.height - 52);
+
+      ctx.font = '12px sans-serif';
+      ctx.fillStyle = '#e2e8f0';
+      ctx.fillText(`Waktu: ${dateStr} ${timeStr}`, 15, canvas.height - 32);
+      ctx.fillText(`GPS: ${userLat ? userLat.toFixed(6) : '-'}, ${userLng ? userLng.toFixed(6) : '-'} (${currentDistance}m)`, 15, canvas.height - 14);
+
+      return canvas.toDataURL('image/jpeg', 0.85);
+    }
+
+    // 5. SUBMIT PRESENSI (MASUK / PULANG)
+    async function submitPresensi(tipe) {
+      const jurnalVal = document.getElementById('input-jurnal').value.trim();
+
+      if (!jurnalVal) {
+        alert('Wajib mengisi Jurnal Kegiatan/Mengajar sebelum melakukan presensi!');
+        return;
+      }
+
+      if (currentDistance > MAX_ALLOWED_DISTANCE) {
+        if (!confirm(`Posisi Anda berjarak ${currentDistance}m (melebihi batas 100m). Tetap lanjutkan presensi?`)) {
+          return;
+        }
+      }
+
+      const btn = document.getElementById(tipe === 'MASUK' ? 'btn-absen-masuk' : 'btn-absen-pulang');
+      const originalText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Menyimpan...`;
+
+      const photoBase64 = captureSnapshotWithWatermark();
+
+      const payload = {
+        action: 'savePresensi',
+        tipe: tipe,
+        idGuru: '198503122010012015',
+        namaGuru: 'Nurbaya, S.Pd.',
+        jarak: currentDistance,
+        jurnal: jurnalVal,
+        photoBase64: photoBase64
+      };
+
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+
+        if (json.status === 'success') {
+          alert(json.message);
+          document.getElementById('input-jurnal').value = '';
+          fetchInitialData();
+        } else {
+          alert('Gagal: ' + json.message);
+        }
+      } catch (err) {
+        alert('Terjadi kesalahan jaringan atau server!');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+      }
+    }
+
+    // 6. FETCH INITIAL DATA & REFRESH TABLE
+    async function fetchInitialData() {
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getInitialData' })
+        });
+        const json = await res.json();
+
+        if (json.status === 'success') {
+          if (json.teacher) {
+            document.getElementById('prof-nama').innerText = json.teacher.nama;
+            document.getElementById('prof-jabatan').innerText = `${json.teacher.jabatan} • ${json.teacher.sekolah}`;
+          }
+          if (json.riwayat) {
+            globalRiwayatData = json.riwayat;
+            renderRiwayatTable(globalRiwayatData);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load initial data", e);
+      }
+    }
+
+    // 7. FILTER RIWAYAT DATA
+    async function loadRiwayatData() {
+      const dateVal = document.getElementById('filter-date').value;
+      const statusVal = document.getElementById('filter-status').value;
+
+      const tbody = document.getElementById('table-body');
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="10" class="p-8 text-center text-slate-400">
+            <i class="fa-solid fa-spinner fa-spin text-2xl mb-2"></i>
+            <p>Memfilter data...</p>
+          </td>
+        </tr>
+      `;
+
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'getRiwayat', date: dateVal, status: statusVal })
+        });
+        const json = await res.json();
+
+        if (json.status === 'success') {
+          globalRiwayatData = json.riwayat;
+          renderRiwayatTable(globalRiwayatData);
+        }
+      } catch (e) {
+        alert("Gagal memuat data riwayat.");
+      }
+    }
+
+    // 8. RENDER RIWAYAT TABLE
+    function renderRiwayatTable(data) {
+      const tbody = document.getElementById('table-body');
+      document.getElementById('txt-total-row').innerText = `${data.length} Data`;
+
+      if (!data || data.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="10" class="p-8 text-center text-slate-400">
+              <i class="fa-solid fa-inbox text-3xl mb-2"></i>
+              <p>Tidak ada data presensi ditemukan.</p>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = data.map(item => {
+        let badgeStyle = "bg-emerald-100 text-emerald-800";
+        const st = item.status.toLowerCase();
+
+        if (st === 'terlambat') badgeStyle = "bg-amber-100 text-amber-800";
+        else if (st === 'izin') badgeStyle = "bg-blue-100 text-blue-800";
+        else if (st === 'sakit') badgeStyle = "bg-purple-100 text-purple-800";
+        else if (st === 'alpa') badgeStyle = "bg-rose-100 text-rose-800";
+        else if (st === 'cuti') badgeStyle = "bg-indigo-100 text-indigo-800";
+
+        const fotoMasukHTML = (item.fotoMasuk && item.fotoMasuk !== '-') ? 
+          `<button onclick="openPreviewModal('${item.fotoMasuk}')" class="text-blue-600 hover:underline font-medium flex items-center gap-1"><i class="fa-solid fa-image"></i> Foto Masuk</button>` : '-';
+
+        const fotoPulangHTML = (item.fotoPulang && item.fotoPulang !== '-') ? 
+          `<button onclick="openPreviewModal('${item.fotoPulang}')" class="text-blue-600 hover:underline font-medium flex items-center gap-1"><i class="fa-solid fa-image"></i> Foto Pulang</button>` : '-';
+
+        const fileIzinHTML = (item.fileIzin && item.fileIzin !== '-') ? 
+          `<button onclick="openPreviewModal('${item.fileIzin}')" class="text-purple-600 hover:underline font-medium flex items-center gap-1"><i class="fa-solid fa-paperclip"></i> Lampiran</button>` : '-';
+
+        return `
+          <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+            <td class="p-3 font-semibold text-slate-800 whitespace-nowrap">${item.tanggal}</td>
+            <td class="p-3 whitespace-nowrap">
+              <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${badgeStyle}">${item.status}</span>
+            </td>
+            <td class="p-3 font-mono font-semibold text-slate-700">${item.jamMasuk}</td>
+            <td class="p-3 font-mono font-semibold text-slate-700">${item.jamPulang}</td>
+            <td class="p-3 font-mono">${item.jarakMasuk !== '-' ? item.jarakMasuk + ' m' : '-'}</td>
+            <td class="p-3 font-mono">${item.jarakPulang !== '-' ? item.jarakPulang + ' m' : '-'}</td>
+            <td class="p-3 text-slate-600 max-w-xs truncate" title="${item.jurnal}">${item.jurnal}</td>
+            <td class="p-3 whitespace-nowrap">${fotoMasukHTML}</td>
+            <td class="p-3 whitespace-nowrap">${fotoPulangHTML}</td>
+            <td class="p-3 whitespace-nowrap">${fileIzinHTML}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // 9. EXPORT TO EXCEL
+    function exportToExcel() {
+      if (!globalRiwayatData || globalRiwayatData.length === 0) {
+        alert("Tidak ada data untuk diexport!");
+        return;
+      }
+
+      const excelData = globalRiwayatData.map(item => ({
+        "TANGGAL": item.tanggal,
+        "STATUS": item.status,
+        "MASUK": item.jamMasuk,
+        "PULANG": item.jamPulang,
+        "JARAK MASUK (M)": item.jarakMasuk,
+        "JARAK PULANG (M)": item.jarakPulang,
+        "JURNAL": item.jurnal,
+        "LINK FOTO MASUK": item.fotoMasuk,
+        "LINK FOTO PULANG": item.fotoPulang,
+        "LINK FILE IZIN": item.fileIzin
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Presensi");
+
+      XLSX.writeFile(workbook, `Presensi_SDN_Rappocini_${new Date().toISOString().substring(0,10)}.xlsx`);
+    }
+
+    // 10. IZIN MODAL & CALCULATE DAYS
+    function openIzinModal() {
+      document.getElementById('modal-izin').classList.remove('hidden');
+    }
+
+    function closeIzinModal() {
+      document.getElementById('modal-izin').classList.add('hidden');
+    }
+
+    function calcJumlahHari() {
+      const t1 = new Date(document.getElementById('iz-tgl-mulai').value);
+      const t2 = new Date(document.getElementById('iz-tgl-selesai').value);
+
+      if (!isNaN(t1) && !isNaN(t2)) {
+        const diffTime = t2 - t1;
+        let diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        if (diffDays < 1) diffDays = 1;
+        document.getElementById('iz-jumlah-hari').innerText = `${diffDays} hari.`;
+      }
+    }
+
+    // SUBMIT FORM IZIN
+    async function submitIzinForm(e) {
+      e.preventDefault();
+
+      const btn = document.getElementById('btn-submit-izin');
+      const origText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Mengirim...`;
+
+      const jenis = document.getElementById('iz-jenis').value;
+      const rincian = document.getElementById('iz-rincian').value;
+      const tglMulai = document.getElementById('iz-tgl-mulai').value;
+      const tglSelesai = document.getElementById('iz-tgl-selesai').value;
+      const jumlahHari = document.getElementById('iz-jumlah-hari').innerText;
+      const keterangan = document.getElementById('iz-keterangan').value;
+      const fileInput = document.getElementById('iz-file');
+
+      let fileBase64 = null;
+      let fileName = null;
+      let fileMime = null;
+
+      if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        fileName = file.name;
+        fileMime = file.type;
+        fileBase64 = await convertFileToBase64(file);
+      }
+
+      const payload = {
+        action: 'saveIzin',
+        jenisPengajuan: jenis,
+        rincianPengajuan: rincian,
+        tanggalMulai: tglMulai,
+        tanggalSelesai: tglSelesai,
+        jumlahHari: jumlahHari,
+        keterangan: keterangan,
+        namaGuru: 'Nurbaya, S.Pd.',
+        fileBase64: fileBase64,
+        fileName: fileName,
+        fileMime: fileMime
+      };
+
+      try {
+        const res = await fetch(SCRIPT_URL, {
+          method: 'POST',
+          redirect: 'follow',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        const json = await res.json();
+
+        if (json.status === 'success') {
+          alert(json.message);
+          closeIzinModal();
+          document.getElementById('form-izin').reset();
+          fetchInitialData();
+        } else {
+          alert('Gagal: ' + json.message);
+        }
+      } catch (err) {
+        alert('Terjadi kesalahan koneksi server.');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = origText;
+      }
+    }
+
+    function convertFileToBase64(file) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+      });
+    }
+
+    // 11. PREVIEW MODAL
+    function openPreviewModal(url) {
+      if (url.includes('drive.google.com')) {
+        window.open(url, '_blank');
+      } else {
+        document.getElementById('img-preview').src = url;
+        document.getElementById('modal-preview').classList.remove('hidden');
+      }
+    }
+
+    function closePreviewModal() {
+      document.getElementById('modal-preview').classList.add('hidden');
+    }
+
+    // 12. TAB NAVIGATION SWITCHER
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.querySelectorAll('.nav-btn').forEach(el => {
+        el.classList.remove('text-blue-600');
+        el.classList.add('text-slate-400');
+      });
+
+      if (tabName === 'absensi') {
+        document.getElementById('tab-absensi').classList.remove('hidden');
+        document.getElementById('nav-absensi').classList.add('text-blue-600');
+      } else if (tabName === 'riwayat') {
+        document.getElementById('tab-riwayat').classList.remove('hidden');
+        document.getElementById('nav-riwayat').classList.add('text-blue-600');
+        loadRiwayatData();
+      } else if (tabName === 'request') {
+        document.getElementById('tab-request').classList.remove('hidden');
+        document.getElementById('nav-request').classList.add('text-blue-600');
+      } else if (tabName === 'setting') {
+        document.getElementById('tab-setting').classList.remove('hidden');
+        document.getElementById('nav-setting').classList.add('text-blue-600');
+      }
+    }
+  </script>
+</body>
+</html>
