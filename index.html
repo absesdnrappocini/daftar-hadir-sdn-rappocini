@@ -530,17 +530,34 @@ function renderRiwayatTable(data) {
   const tbody = document.getElementById('tableRiwayatBody');
   tbody.innerHTML = '';
 
-  if (data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">Tidak ada data</td></tr>';
+  // 1. Filter agar menu Riwayat HANYA menampilkan data milik user yang sedang login
+  const myData = data.filter(r => {
+    if (!currentUser) return true;
+    const myId = String(currentUser.idGuru || currentUser.id || '').trim();
+    const myName = String(currentUser.nama || '').trim().toLowerCase();
+    const rowId = String(r.idGuru || r.id || '').trim();
+    const rowName = String(r.nama || '').trim().toLowerCase();
+    return (myId && rowId === myId) || (myName && rowName === myName);
+  });
+
+  if (myData.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="p-4 text-center text-slate-400">Tidak ada data riwayat Anda</td></tr>';
     return;
   }
 
-  data.forEach(r => {
+  myData.forEach(r => {
     const jamMasuk = r.jamMasuk || r.masuk || '-';
     const jamPulang = r.jamPulang || r.pulang || '-';
     const durasi = hitungJamKerja(jamMasuk, jamPulang);
     const fotoMasukUrl = r.fotoMasuk || r.foto;
     const fotoPulangUrl = r.fotoPulang || r.linkFotoPulang;
+
+    // 2. Tautan Titik Lokasi Google Maps (Masuk & Pulang)
+    const locMasuk = r.lokasiMasuk || r.koordinatMasuk || r.latMasuk;
+    const locPulang = r.lokasiPulang || r.koordinatPulang || r.latPulang;
+
+    const mapMasukUrl = locMasuk && locMasuk !== '-' ? (String(locMasuk).startsWith('http') ? locMasuk : `https://www.google.com/maps?q=${encodeURIComponent(locMasuk)}`) : null;
+    const mapPulangUrl = locPulang && locPulang !== '-' ? (String(locPulang).startsWith('http') ? locPulang : `https://www.google.com/maps?q=${encodeURIComponent(locPulang)}`) : null;
 
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -549,8 +566,14 @@ function renderRiwayatTable(data) {
         <span class="text-[9px] text-slate-400">${r.tanggal} (${r.shift || 'PAGI'})</span>
       </td>
       <td class="p-2"><span class="px-1.5 py-0.5 rounded text-[9px] font-bold ${r.status === 'Terlambat' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}">${r.status}</span></td>
-      <td class="p-2 font-mono text-center">${jamMasuk}</td>
-      <td class="p-2 font-mono text-center">${jamPulang}</td>
+      <td class="p-2 font-mono text-center">
+        <div>${jamMasuk}</div>
+        ${mapMasukUrl ? `<a href="${mapMasukUrl}" target="_blank" class="text-[9px] text-emerald-600 hover:underline block font-sans"><i class="fa-solid fa-location-dot"></i> Peta</a>` : ''}
+      </td>
+      <td class="p-2 font-mono text-center">
+        <div>${jamPulang}</div>
+        ${mapPulangUrl ? `<a href="${mapPulangUrl}" target="_blank" class="text-[9px] text-amber-600 hover:underline block font-sans"><i class="fa-solid fa-location-dot"></i> Peta</a>` : ''}
+      </td>
       <td class="p-2 text-center font-bold text-blue-600">${durasi}</td>
       <td class="p-2 text-center">${fotoMasukUrl && fotoMasukUrl !== '-' ? `<a href="${fotoMasukUrl}" target="_blank" class="text-blue-600 underline text-[10px]">Foto</a>` : '-'}</td>
       <td class="p-2 text-center">${fotoPulangUrl && fotoPulangUrl !== '-' ? `<a href="${fotoPulangUrl}" target="_blank" class="text-blue-600 underline text-[10px]">Foto</a>` : '-'}</td>
