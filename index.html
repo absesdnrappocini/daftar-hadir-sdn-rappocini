@@ -58,8 +58,8 @@
         </div>
       </div>
       <div class="text-right">
-        <span id="liveClock" class="text-xs font-mono font-bold block">12:00 WITA</span>
-        <span id="liveDate" class="text-[10px] text-blue-200">Selasa, 15 Sep 2026</span>
+        <span id="headerClock" class="text-xs font-mono font-bold block">12:00 WITA</span>
+<span id="headerDate" class="text-[10px] text-blue-200">Memuat tanggal...</span>
       </div>
     </div>
   </header>
@@ -1062,6 +1062,62 @@ function setStatusManual(namaGuru) {
     alert(`Status ${namaGuru} berhasil diubah menjadi: ${status.trim()}`);
     // Integrasi panggil Google Apps Script simpan status di sini jika diperlukan
   }
+}
+    // ========================================================
+// FUNGSI JAM & TANGGAL TERKUNCI WAKTU MAKASSAR (WITA)
+// ========================================================
+function initRealtimeClockAndDate() {
+  function updateClock() {
+    const now = new Date();
+
+    // 1. Format Jam ke WITA (Asia/Makassar)
+    const jamFormat = now.toLocaleTimeString('id-ID', {
+      timeZone: 'Asia/Makassar',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const stringJam = `${jamFormat.replace(/:/g, '.')} WITA`;
+
+    // 2. Format Tanggal ke WITA
+    const stringTanggal = now.toLocaleDateString('id-ID', {
+      timeZone: 'Asia/Makassar',
+      weekday: 'long',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    });
+
+    const elJam = document.getElementById('headerClock') || document.querySelector('[id*="jam"]') || document.querySelector('[id*="clock"]');
+    const elTgl = document.getElementById('headerDate') || document.querySelector('[id*="tanggal"]') || document.querySelector('[id*="date"]');
+
+    if (elJam) elJam.innerText = stringJam;
+    if (elTgl) elTgl.innerText = stringTanggal;
+  }
+
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // 3. Set Filter Tanggal ke Hari Ini
+  const now = new Date();
+  const todayMakassar = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Makassar',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).format(now);
+
+  const dateInputs = document.querySelectorAll('input[type="date"]');
+  dateInputs.forEach(input => {
+    input.value = todayMakassar;
+  });
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initRealtimeClockAndDate);
+} else {
+  initRealtimeClockAndDate();
 }
   </script>
 </body>
